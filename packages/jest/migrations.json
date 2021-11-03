@@ -7,6 +7,5 @@
       "factory": "./src/migrations/update-12-6-0/update-base-jest-config"
     }
   },
-  "packageJsonUpdates": {
-  }
+  "packageJsonUpdates": {}
 }
