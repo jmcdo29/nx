@@ -3,14 +3,52 @@ import {
   TypeScriptCompilationOptions,
 } from '@nrwl/workspace/src/utilities/typescript/compilation';
 import { exec, execSync } from 'child_process';
+import { appRootPath } from '@nrwl/workspace/src/utils/app-root';
+import { join } from 'path';
+import { forkTypeDeclarationEmitter } from '@nrwl/node/src/executors/package/utils/fork-type-declaration-emitter';
+import { forkTypeChecker } from './fork-type-checker';
 
 export async function execSwc(
   tscOptions: TypeScriptCompilationOptions,
+  hasDependencies: boolean,
   completeCallback: () => void | Promise<void>
 ) {
   const normalizedTscOptions = normalizeOptions(tscOptions);
 
   try {
+    // console.log(
+    //   `Generating d.ts files for ${normalizedTscOptions.projectName}...`
+    // );
+    // const ts = await import('typescript');
+    // const result = await emitTypeDeclarations(
+    //   ts,
+    //   normalizedTscOptions.projectRoot,
+    //   normalizedTscOptions.tsConfig
+    // );
+    //
+    // if (!result.result.emitSkipped) {
+    //   console.log(
+    //     `Done generating d.ts files for ${normalizedTscOptions.projectName}`
+    //   );
+    // }
+
+    let validTypes = true;
+    try {
+      await forkTypeChecker({
+        baseDir: join(
+          appRootPath,
+          hasDependencies ? 'tmp' : '',
+          normalizedTscOptions.projectRoot
+        ),
+        configPath: normalizedTscOptions.tsConfig,
+      });
+    } catch {
+      validTypes = false;
+    }
+    if (!validTypes) {
+      return { success: false };
+    }
+
     console.log(
       `Compiling with SWC for ${normalizedTscOptions.projectName}...`
     );
@@ -31,10 +69,7 @@ export async function execSwc(
     }
 
     const swcCmdLog = execSync(swcCmd).toString();
-    console.log(swcCmdLog);
-    console.log(
-      `Done compiling with SWC for ${normalizedTscOptions.projectName}.`
-    );
+    console.log(swcCmdLog.replace(/\n/, ''));
     await completeCallback();
     return { success: true };
   } catch (e) {
